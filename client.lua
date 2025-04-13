@@ -4,9 +4,11 @@ local PlayerData = QBCore.Functions.GetPlayerData()
 local config = Config
 local UIConfig = UIConfig
 local speedMultiplier = config.UseMPH and 2.23694 or 3.6
-local seatbeltOn = false
+-- Set seatbelt to always on so it doesn't appear in the UI
+local seatbeltOn = true
 local cruiseOn = false
 local showAltitude = false
+-- Disable the seatbelt display
 local showSeatbelt = false
 local next = next
 local nos = 0
@@ -73,19 +75,9 @@ local function CinematicShow(bool)
     end
 end
 
+-- Modified to always return false for harness (disabling functionality)
 local function hasHarness()
-    local ped = PlayerPedId()
-    if not IsPedInAnyVehicle(ped, false) then return end
-
-    local _harness = false
-    local hasHarness = exports['qb-smallresources']:HasHarness()
-    if hasHarness then
-        _harness = true
-    else
-        _harness = false
-    end
-
-    harness = _harness
+    harness = false
 end
 
 local function loadSettings()
@@ -645,12 +637,15 @@ AddStateBagChangeHandler('stress', ('player:%s'):format(serverId), function(_, _
     stress = value
 end)
 
+-- Removed seatbelt toggle events to prevent any seatbelt triggers from other scripts
+
+-- Disable event handlers for seatbelt toggling (just making them do nothing)
 RegisterNetEvent('hud:client:ToggleShowSeatbelt', function()
-    showSeatbelt = not showSeatbelt
+    -- Do nothing, effectively disabling the functionality
 end)
 
-RegisterNetEvent('seatbelt:client:ToggleSeatbelt', function() -- Triggered in smallresources
-    seatbeltOn = not seatbeltOn
+RegisterNetEvent('seatbelt:client:ToggleSeatbelt', function()
+    -- Do nothing, effectively disabling the functionality
 end)
 
 RegisterNetEvent('seatbelt:client:ToggleCruise', function() -- Triggered in smallresources
@@ -997,10 +992,11 @@ CreateThread(function()
                     dev,
                 })
 
+                -- Always set seatbelt to true in vehicle HUD update
                 updateVehicleHud({
                     show,
                     IsPauseMenuActive(),
-                    seatbeltOn,
+                    true, -- Always set seatbelt to true
                     math.ceil(GetEntitySpeed(vehicle) * speedMultiplier),
                     getFuelLevel(vehicle),
                     math.ceil(GetEntityCoords(player).z * 0.5),
@@ -1017,7 +1013,7 @@ CreateThread(function()
                     updateShowVehicleHud(false)
                     prevVehicleStats[1] = false
                     prevVehicleStats[3] = false
-                    seatbeltOn = false
+                    seatbeltOn = true  -- Keep seatbelt status always true
                     cruiseOn = false
                     harness = false
                 end
@@ -1094,24 +1090,8 @@ RegisterNetEvent('hud:client:OnMoneyChange', function(type, amount, isMinus)
     })
 end)
 
--- Harness Check / Seatbelt Check
-
-CreateThread(function()
-    while true do
-        Wait(1500)
-        if LocalPlayer.state.isLoggedIn then
-            local ped = PlayerPedId()
-            if IsPedInAnyVehicle(ped, false) then
-                hasHarness()
-                local veh = GetEntityModel(GetVehiclePedIsIn(ped, false))
-                if seatbeltOn ~= true and IsThisModelACar(veh) then
-                    TriggerEvent("InteractSound_CL:PlayOnOne", "beltalarm", 0.6)
-                end
-            end
-        end
-    end
-end)
-
+-- Remove the seatbelt check thread completely
+-- We're not running any checks or alarm sounds anymore
 
 -- Stress Gain
 
@@ -1121,7 +1101,7 @@ CreateThread(function() -- Speeding
             local ped = PlayerPedId()
             if IsPedInAnyVehicle(ped, false) then
                 local speed = GetEntitySpeed(GetVehiclePedIsIn(ped, false)) * speedMultiplier
-                local stressSpeed = seatbeltOn and config.MinimumSpeed or config.MinimumSpeedUnbuckled
+                local stressSpeed = config.MinimumSpeed -- Always use the higher speed since we're always "buckled"
                 local vehClass = GetVehicleClass(GetVehiclePedIsIn(ped, false))
                 if Config.VehClassStress[tostring(vehClass)] then
                     if speed >= stressSpeed then
